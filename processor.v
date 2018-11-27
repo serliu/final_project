@@ -82,7 +82,7 @@ module processor(
     ctrl_readRegB,                  // O: Register to read from port B of regfile
     data_writeReg,                  // O: Data to write to for regfile
     data_readRegA,                  // I: Data from port A of regfile
-    data_readRegB                  // I: Data from port B of regfile
+    data_readRegB, flush, DX_control, control                 // I: Data from port B of regfile
 	 
 	 
 	 //Begin delete later--for testing
@@ -127,20 +127,23 @@ module processor(
 	   Start the counter at 0 then add 1 each time*/
 		
 	 wire [31:0] PC_current_out; //comes out of PC register
-	 wire [31:0] PC_calculated; //calculated from jump and branch stuff, will come in from the XM pipeline!!!
+	 wire [31:0] PC_calculated; //calculated from jump and branch stuff, come in from the x stage
 	 wire [31:0] PC_plus_1; // plus 1 every time to get to new insn
 	 wire [31:0] FD_PC; //PC from FD pipelines
-	 wire flush;
+	wire [31:0] PC_to_pass;
+	 
+	 
+	 output flush;
 	 wire en;
 	 assign en = 1'b1;  
-	 wire clr;
-	 assign clr = flush || reset;
+
 	 
 	 //-----------------ASSIGNING WIRES-------------------//
 	 //Fetch stage wires
 	 wire [31:0] instruction; 
 	 //Decode stage wires
-	 wire [31:0] DX_PC, DX_A, DX_B, DX_IR, DX_imm_sx, DX_target_sx, DX_control;
+	 wire [31:0] DX_PC, DX_A, DX_B, DX_IR, DX_imm_sx, DX_target_sx;
+	 output [31:0] DX_control;
 	// output [31:0] DX_PC, DX_A, DX_B, DX_IR, DX_imm_sx, DX_target_sx, DX_control;
 	 //Execute stage wires
 	 wire [31:0] alu_A, alu_B, alu_op, alu_op_others, data_result; 
@@ -150,7 +153,7 @@ module processor(
 	 wire A_bypass_MX_sel, A_bypass_WX_sel, B_bypass_MX_sel, B_bypass_WX_sel, needs_bypassing_A, needs_bypassing_B;
 	 
 	 //output[31:0] XM_PC, XM_IR, XM_target_sx, XM_output, XM_control, XM_B_data, XM_old_PC;
-	 wire[31:0] XM_PC, XM_IR, XM_target_sx, XM_output, XM_control, XM_B_data, XM_old_PC;
+	 wire[31:0] XM_PC, XM_IR, XM_target_sx, XM_output, XM_control, XM_B_data, XM_old_PC, XM_flush;
 	 //Memory stage wires
 	 
 	 wire [31:0] MW_old_PC, MW_IR, MW_control, MW_output, MW_dmem, MW_target_sx;
@@ -159,6 +162,7 @@ module processor(
 	 wire [31:0] data_decision1, data_decision2;
 	 
 	 wire[4:0] ctrl_decision;
+	 wire IGT_trashbits, cout_trashbits;
 	 	 
 	 /*-----------------FETCH STAGE----------------------- 
 		1. Fetch instruction from Instruction Memory using the PC 
@@ -167,19 +171,16 @@ module processor(
 	 */
 	 
 	 //q_imem now goes to FD register
+	
 	 
+	 register PC(PC_current_out, PC_calculated, ~clock, 1'b1, reset);
 	 
-	 register PC(PC_current_out, PC_calculated, clock, 1'b1, reset);
-	 
-	 wire IGT_trashbits, cout_trashbits;
-	 
-	 thirty_two_bit_adder PCadder(PC_current_out, 32'h00000001, 1'b0, PC_plus_1, cout_trashbits, IGT_trashbits);
-	 
-	 register PC_FD1(FD_PC, PC_plus_1, clock, 1'b1, clr );
+	 register PC_FD1(FD_PC, PC_current_out, clock, 1'b1, reset );
 	 
 	 assign address_imem = PC_current_out[11:0]; //outputs this instruction so that it can be fetched from insn mem
 	 
-	 //TODO: FIGURE OUT LW CONFLICTS : on slides
+	 thirty_two_bit_adder PCadder(PC_current_out, 32'h00000001, 1'b0, PC_plus_1, cout_trashbits, IGT_trashbits);
+
 	 
 
 	 assign instruction = q_imem;
@@ -187,13 +188,10 @@ module processor(
 	 
 	 wire[31:0] FD_IR;
 	 
+	 wire [31:0] FD_in;
+	 assign FD_in = flush ? 32'b0 : instruction; 
 	 
-	 register FD_IR1(FD_IR, instruction, clock, 1'b1, reset); //write the instruction to PC_IR register of the PC pipeline reg
-	 
-	 wire [4:0] rd, rs, rt; 
-	 assign rd = instruction[26:22];
-	 assign rs = instruction[21:17]; 
-	 assign rt = instruction[16:12];
+	 register FD_IR1(FD_IR, FD_in, clock, 1'b1, reset); //write the instruction to PC_IR register of the PC pipeline reg
 	 
 	 //put load stalls here? 
 		
@@ -239,7 +237,7 @@ module processor(
 		25. is blt
 		*/
 
-	wire [31:0] control; 
+	output [31:0] control; 
 	control_unit controls(FD_IR, control);
 	
 	//Read data from regfile-externally
@@ -347,7 +345,7 @@ module processor(
 	 wire[31:0] rstatus_data, rstatus_int1, rstatus_int2, rstatus_int3, rstatus_int4;
 	 wire[31:0] new_instruction_rd; 
 	 wire overflow_exists;
-	 assign overflow_exists = alu_overflow || multdiv_exception;
+	 assign overflow_exists = alu_overflow;
 	 
 	 assign ovf_data_add = DX_control[12] && alu_overflow;
 	 assign ovf_data_addi = DX_control[13] && alu_overflow;
@@ -360,7 +358,6 @@ module processor(
 	 assign rstatus_int2 = ovf_data_addi ? 32'h00000002 : rstatus_int1;
 	 assign rstatus_int3 = ovf_data_sub ? 32'h00000003 : rstatus_int2;
 	 assign rstatus_data = ovf_data_mul ? 32'h00000004 : rstatus_int3;
-	 //assign rstatus_data = ovf_data_div
 	 
 	 //Make a new instruction destination register for writeback IF rstatus instead of RD
 	 assign new_instruction_rd[31:27] = DX_IR[31:27];
@@ -377,11 +374,11 @@ module processor(
 	 wire branch_taken, target_jumps, jr_insn, bex_taken; 
 	 assign branch_taken = (isLessThan && DX_control[25]) || (isNotEqual && DX_control[24]);
 	 
-	 assign bex_taken = ~|alu_A[31:0] && DX_control[8]; //if bex AND rstatus is 0, PC=T
+	 assign bex_taken = (~|alu_A[31:0] && DX_control[8]); //if bex AND rstatus is 0, PC=T
 	 assign target_jumps = DX_control[21] || DX_control[18] || bex_taken; //j, jal, bex, PC = T
 	 
 	 assign jr_insn = DX_control[19]; //PC = rd, which in this case is operand B 
-	 assign flush = branch_taken || target_jumps || jr_insn;
+	 assign flush = branch_taken || target_jumps || jr_insn || bex_taken;
 	 
 	 //Calculate PC = PC+N for branches
 	 wire[31:0] PC_branch;
@@ -394,7 +391,7 @@ module processor(
 		branch --> PC = PC + N
 	 */ 
 	
-	 wire [31:0] intermediate_PC, intermediate_2_PC, PC_to_pass; 
+	 wire [31:0] intermediate_PC, intermediate_2_PC; 
 	 assign intermediate_PC = branch_taken ? PC_branch: DX_PC; 
 	 assign intermediate_2_PC = target_jumps ? DX_target_sx: intermediate_PC;
 	 assign PC_to_pass = jr_insn ? DX_B : intermediate_2_PC;
@@ -409,9 +406,9 @@ module processor(
 		6. Data rd (which is alu_b)
 		*note: don't need immediate anymore!
 		*/
+	 assign PC_calculated = flush ? PC_to_pass: PC_plus_1;
 		
-		
-	 XM xm1(DX_PC, PC_to_pass, new_instruction_rd, DX_target_sx, DX_control, X_output, DX_B, clock, en, reset,
+	 XM xm1(DX_PC, PC_to_pass, new_instruction_rd, DX_target_sx, DX_control, X_output, DX_B, flush,clock, en, reset,
 				 XM_old_PC, XM_PC, XM_IR, XM_target_sx, XM_control, XM_output, XM_B_data); 
 	   
 	 
@@ -422,7 +419,8 @@ module processor(
 		2. Write to MW register	
 	 */
 	 //assign pc, which could be a calculated pc or a regular pc
-	 assign PC_calculated = flush? XM_PC: PC_plus_1;
+	 //make control[31] = to the XM stage flush bit
+	// assign PC_calculated = XM_control[31]? XM_PC: PC_plus_1;
 	 
 	 //wm bypassing--> if MW.RD == XM.RD(sw)
 	 wire[31:0] WM_bypass_data;

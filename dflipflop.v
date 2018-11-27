@@ -11,7 +11,7 @@ module dflipflop(d, clk, clr, pr, ena, q);
         q = 1'b0;
     end
 
-    always @(posedge clk) begin
+    always @(negedge clk) begin
         if (q == 1'bx) begin
             q <= 1'b0;
         end else if (clr) begin

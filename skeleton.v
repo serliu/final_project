@@ -11,8 +11,7 @@
 
 module skeleton(clock, reset,
 //for testing
-  data_writeReg, ctrl_writeEnable, ctrl_writeReg, wren, address_dmem, data, ctrl_readRegA, ctrl_readRegB
-
+  data_writeReg, ctrl_writeEnable, ctrl_writeReg, wren, address_dmem, data, ctrl_readRegA, ctrl_readRegB, address_imem, flush_overall, opcode, control, control_prev
 
 
 );
@@ -21,8 +20,13 @@ module skeleton(clock, reset,
     /** IMEM **/
     // Figure out how to generate a Quartus syncram component and commit the generated verilog file.
     // Make sure you configure it correctly!
-    wire [11:0] address_imem;
+    output [11:0] address_imem;
+	 output flush_overall;
+	 output[31:0] control;
+	 output[31:0] control_prev;
     wire [31:0] q_imem;
+	 output [4:0] opcode;
+	 assign opcode = q_imem[31:27];
     imem my_imem(
         .address    (address_imem),            // address of data
         .clock      (~clock),                  // you may need to invert the clock
@@ -106,7 +110,8 @@ module skeleton(clock, reset,
         ctrl_readRegB,                  // O: Register to read from port B of regfile
         data_writeReg,                  // O: Data to write to for regfile
         data_readRegA,                  // I: Data from port A of regfile
-        data_readRegB                   // I: Data from port B of regfile
-    );
+        data_readRegB,                   // I: Data from port B of regfile
+   flush_overall, control, control_prev
+	 );
 
 endmodule
