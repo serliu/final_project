@@ -13,13 +13,9 @@ module skeleton(clock, reset,
 //for testing
   data_writeReg, ctrl_writeEnable, ctrl_writeReg, wren, address_dmem, data, ctrl_readRegA, ctrl_readRegB, address_imem, flush_overall, opcode, control, control_prev
 
-
 );
     input clock, reset;
-
-    /** IMEM **/
-    // Figure out how to generate a Quartus syncram component and commit the generated verilog file.
-    // Make sure you configure it correctly!
+	 
     output [11:0] address_imem;
 	 output flush_overall;
 	 output[31:0] control;
@@ -75,6 +71,8 @@ module skeleton(clock, reset,
 		// wire [31:0] data_writeReg;
     wire [31:0] data_readRegA, data_readRegB;
 	 
+	 wire[31:0] reg3; //for notes 
+	 wire signal_to_write; //will be sent from the display
     regfile my_regfile(
         clock,
         ctrl_writeEnable,
@@ -84,7 +82,9 @@ module skeleton(clock, reset,
         ctrl_readRegB,
         data_writeReg,
         data_readRegA,
-        data_readRegB
+        data_readRegB,
+		  reg3,
+		  signal_to_write //r12 will be written high if the game needs a new note
     );
 
     /** PROCESSOR **/
@@ -110,7 +110,8 @@ module skeleton(clock, reset,
         ctrl_readRegB,                  // O: Register to read from port B of regfile
         data_writeReg,                  // O: Data to write to for regfile
         data_readRegA,                  // I: Data from port A of regfile
-        data_readRegB,                   // I: Data from port B of regfile
+        data_readRegB, 						  // I: Data from port B of regfile
+		  //read_3,
    flush_overall, control, control_prev
 	 );
 

@@ -4,12 +4,16 @@ module regfile (
     ctrl_reset,
 	 ctrl_writeReg, ctrl_readRegA, ctrl_readRegB,
 	 data_writeReg,
-    data_readRegA, data_readRegB
+    data_readRegA, data_readRegB,
+	 reg_3_out, r1_signal
 );
 	//Inputs 
    input clock, ctrl_writeEnable, ctrl_reset;
    input [4:0] ctrl_writeReg, ctrl_readRegA, ctrl_readRegB;
    input [31:0] data_writeReg;
+	input r1_signal;
+	output [31:0] reg_3_out;
+
 	
 	// Outputs
    output [31:0] data_readRegA, data_readRegB;
@@ -45,10 +49,16 @@ module regfile (
 			
 		//register 0 is always 0
 		register regs(registers_out[0], 0, clock, 0, ctrl_reset);
+		wire [31:0] write_to_r1;
+		
+		assign write_to_r1 = r1_signal ? 32'h00011111 : 32'b0;
+		
+		
+		register reg1(registers_out[i], write_to_r1, clock, 1'b1, ctrl_reset);
 		
 		generate
 		genvar i;
-		for (i = 1; i < 32; i = i + 1)
+		for (i = 2; i < 32; i = i + 1)
 		begin : gen_registers
 		
 			wire intermediate;
@@ -57,6 +67,8 @@ module regfile (
 				
 		end
 		endgenerate
+		
+		assign reg_3_out = registers_out[3];
 		
 	/* 4. Output of each register goes into 2 32-wide MUX
 			For each mux, put in the ctrl_readRegA and ctrl_readRegB
