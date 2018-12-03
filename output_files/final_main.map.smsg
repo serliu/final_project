@@ -1,0 +1,1 @@
+Info (10281): Verilog HDL Declaration information at thirty_two_bit_adder.v(72): object "notb" differs only in case from object "notB" in the same scope File: C:/Users/Serena/ECE350/final_project/thirty_two_bit_adder.v Line: 72

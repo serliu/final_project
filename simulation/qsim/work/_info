@@ -1,0 +1,73 @@
+m255
+K4
+z2
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dC:/Users/Serena/ECE350/final_project/simulation/qsim
+vhard_block
+Z1 !s110 1543801667
+!i10b 1
+!s100 SajK:decQYlnHBRJDVRbG1
+IXO;CA8eZaC<DHI[Ykj@Jj3
+Z2 VDg1SIo80bB@j0V0VzS_@n1
+R0
+Z3 w1543801665
+Z4 8final_main.vo
+Z5 Ffinal_main.vo
+L0 80892
+Z6 OV;L;10.5b;63
+r1
+!s85 0
+31
+Z7 !s108 1543801667.000000
+Z8 !s107 final_main.vo|
+Z9 !s90 -work|work|final_main.vo|
+!i113 1
+Z10 o-work work
+Z11 tCvgOpt 0
+vskeleton
+R1
+!i10b 1
+!s100 ]@9K5ZLhmPn@YNMT_Cza12
+IFJJVoNVK<Vk5cM0lMkW]W1
+R2
+R0
+R3
+R4
+R5
+L0 32
+R6
+r1
+!s85 0
+31
+R7
+R8
+R9
+!i113 1
+R10
+R11
+vskeleton_vlg_vec_tst
+!s110 1543801668
+!i10b 1
+!s100 5=U]X@]ibTiT:;A5SdN[h0
+IF0=zheVbOfTRE>TWn:J5D2
+R2
+R0
+w1543801664
+8Waveform1.vwf.vt
+FWaveform1.vwf.vt
+L0 30
+R6
+r1
+!s85 0
+31
+R7
+!s107 Waveform1.vwf.vt|
+!s90 -work|work|Waveform1.vwf.vt|
+!i113 1
+R10
+R11

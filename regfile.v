@@ -51,10 +51,10 @@ module regfile (
 		register regs(registers_out[0], 0, clock, 0, ctrl_reset);
 		wire [31:0] write_to_r1;
 		
-		assign write_to_r1 = r1_signal ? 32'h00011111 : 32'b0;
+		assign write_to_r1 = r1_signal ? 32'd1 : 32'b0;
 		
 		
-		register reg1(registers_out[i], write_to_r1, clock, 1'b1, ctrl_reset);
+		register reg1(registers_out[1], write_to_r1, clock, 1'b1, ctrl_reset);
 		
 		generate
 		genvar i;
