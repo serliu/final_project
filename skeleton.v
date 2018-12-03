@@ -11,8 +11,8 @@
 
 module skeleton(clock, reset,
 //for testing
-  data_writeReg, ctrl_writeEnable, ctrl_writeReg, wren, address_dmem, data, ctrl_readRegA, ctrl_readRegB, address_imem, flush_overall, opcode, control, control_prev
-
+  data_writeReg, ctrl_writeEnable, ctrl_writeReg, wren, address_dmem, data, ctrl_readRegA, 
+  ctrl_readRegB, address_imem, flush_overall, opcode, control, control_prev, reg3, signal_to_write
 );
     input clock, reset;
 	 
@@ -71,8 +71,8 @@ module skeleton(clock, reset,
 		// wire [31:0] data_writeReg;
     wire [31:0] data_readRegA, data_readRegB;
 	 
-	 wire[31:0] reg3; //for notes 
-	 wire signal_to_write; //will be sent from the display
+	 output[31:0] reg3; //for notes 
+	 input signal_to_write; //will be sent from the display
     regfile my_regfile(
         clock,
         ctrl_writeEnable,
@@ -84,7 +84,7 @@ module skeleton(clock, reset,
         data_readRegA,
         data_readRegB,
 		  reg3,
-		  signal_to_write //r12 will be written high if the game needs a new note
+		  signal_to_write //r1 will be written high if the game needs a new note
     );
 
     /** PROCESSOR **/
@@ -96,7 +96,7 @@ module skeleton(clock, reset,
         // Imem
         address_imem,                   // O: The address of the data to get from imem
         q_imem,                         // I: The data from imem
-
+ 
         // Dmem
         address_dmem,                   // O: The address of the data to get or put from/to dmem
         data,                           // O: The data to write to dmem

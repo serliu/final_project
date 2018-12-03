@@ -175,7 +175,11 @@ module processor(
 	 
 	 register PC(PC_current_out, PC_calculated, ~clock, 1'b1, reset);
 	 
-	 register PC_FD1(FD_PC, PC_current_out, clock, 1'b1, reset );
+	 
+	 wire [31:0] PC_in_FD;
+	 assign PC_in_FD = flush ? 32'b0: PC_current_out;
+	 
+	 register PC_FD1(FD_PC, PC_in_FD , clock, 1'b1, reset );
 	 
 	 assign address_imem = PC_current_out[11:0]; //outputs this instruction so that it can be fetched from insn mem
 	 
@@ -192,8 +196,6 @@ module processor(
 	 assign FD_in = flush ? 32'b0 : instruction; 
 	 
 	 register FD_IR1(FD_IR, FD_in, clock, 1'b1, reset); //write the instruction to PC_IR register of the PC pipeline reg
-	 
-	 //put load stalls here? 
 		
 	 
 	 /*-----------------DECODE STAGE-----------------------
@@ -242,7 +244,7 @@ module processor(
 	
 	//Read data from regfile-externally
 	// regfile registers(clock, 1'b1, reset, WB_write_register, rs, rt, WB_write_register_data, A, B); //TODO: check the write enable, create WB_write_register
-	assign ctrl_readRegA = control[8] ? 5'b11110 : FD_IR[21:17]; //read rstatus or rs 
+	assign ctrl_readRegA = FD_IR[21:17]; //read rstatus or rs 
    assign ctrl_readRegB = control[9] ? FD_IR[26:22] : FD_IR[16:12]; //read rt or rd?
 	
 	
@@ -303,7 +305,8 @@ module processor(
 	 assign A_bypass_WX_sel = &(~(DX_IR[21:17] ^ MW_IR[26:22])) && MW_control[4]; //and check if this value is to be written to a reg
 	 assign needs_bypassing_A = A_bypass_MX_sel || A_bypass_WX_sel; 
 	 assign A_bypass_data =  A_bypass_MX_sel ? A_bypass_data_MX : A_bypass_data_WX ;
-	 assign alu_A = needs_bypassing_A ? A_bypass_data: DX_A;
+	 //assign alu_A = needs_bypassing_A ? A_bypass_data: DX_A;
+	 assign alu_A = needs_bypassing_A ? A_bypass_data: data_readRegA;
 	
 	 
 	 
@@ -318,19 +321,13 @@ module processor(
 	 assign needs_bypassing_B = B_bypass_MX_sel || B_bypass_WX_sel; 
 	 assign B_bypass_data =  B_bypass_MX_sel ? B_bypass_data_MX : B_bypass_data_WX ;
 	 assign B_data = needs_bypassing_B ? B_bypass_data : DX_B ;
-	 assign alu_B = DX_control[2] ? DX_imm_sx : B_data; //immediate
+	// assign alu_B = DX_control[2] ? DX_imm_sx : B_data; //immediate
+	assign alu_B = DX_control[2] ? DX_imm_sx : B_data;
 	 
 	//Mux between alu opcode and 00000
 	assign alu_op_others = DX_control[0] ? DX_IR[6:2] : 5'b00000;
 	assign alu_op = DX_control[17] ? 5'b00001 : alu_op_others; //if it's a branch, use sub to compare 
 	
-	
-	wire[31:0] multdiv_output;
-	wire multdiv_exception, multdiv_RDY;
-	 
-	 
-	 multdiv multdiver(alu_A, alu_B, DX_control[15], DX_control[23], clock, multdiv_output, multdiv_exception, multdiv_RDY); 
-	 
 	 alu aluer(alu_A, alu_B, alu_op, DX_IR[11:7] , data_result, isNotEqual, isLessThan, alu_overflow);
 	 
 	 //ALU TESTING: DELETE THIS
@@ -339,36 +336,11 @@ module processor(
 	 
 	 
 	 //END DELETE
-
-	 //CALCULATE OVERFLOW HERE
-	 wire ovf_data_add, ovf_data_addi, ovf_data_sub, ovf_data_mul, ovf_data_div; 
-	 wire[31:0] rstatus_data, rstatus_int1, rstatus_int2, rstatus_int3, rstatus_int4;
-	 wire[31:0] new_instruction_rd; 
-	 wire overflow_exists;
-	 assign overflow_exists = alu_overflow;
-	 
-	 assign ovf_data_add = DX_control[12] && alu_overflow;
-	 assign ovf_data_addi = DX_control[13] && alu_overflow;
-	 assign ovf_data_sub = DX_control[14] && alu_overflow; 
-	 assign ovf_data_mul = multdiv_exception && DX_control[15];
-	 assign ovf_data_div = multdiv_exception && DX_control[23];
-	
-	 
-	 assign rstatus_int1 = ovf_data_add ? 32'h00000001 : 32'b0 ;
-	 assign rstatus_int2 = ovf_data_addi ? 32'h00000002 : rstatus_int1;
-	 assign rstatus_int3 = ovf_data_sub ? 32'h00000003 : rstatus_int2;
-	 assign rstatus_data = ovf_data_mul ? 32'h00000004 : rstatus_int3;
-	 
-	 //Make a new instruction destination register for writeback IF rstatus instead of RD
-	 assign new_instruction_rd[31:27] = DX_IR[31:27];
-	 assign new_instruction_rd[26:22] = overflow_exists ? 5'b11110: DX_IR[26:22];
-	 assign new_instruction_rd[21:0] = DX_IR[21:0];
 	 
 
 	 //must mux between alu output OR the B data operand OR the mul div output for input to xm register
-	 wire [31:0]  X_output, X1_output;
-	 assign X1_output = DX_control[11] ? multdiv_output : data_result; //use output from multdiv? 
-	 assign X_output = overflow_exists ? rstatus_data : X1_output ; //output for rstatus
+	 wire [31:0]  X_output;
+	 assign X_output = data_result;  
 
 	 //FIGURE OUT FLUSH STUFF AND PC CALCULATIONS HERE
 	 wire branch_taken, target_jumps, jr_insn, bex_taken; 
@@ -408,7 +380,7 @@ module processor(
 		*/
 	 assign PC_calculated = flush ? PC_to_pass: PC_plus_1;
 		
-	 XM xm1(DX_PC, PC_to_pass, new_instruction_rd, DX_target_sx, DX_control, X_output, DX_B, flush,clock, en, reset,
+	 XM xm1(DX_PC, PC_to_pass, DX_IR, DX_target_sx, DX_control, X_output, DX_B, flush,clock, en, reset,
 				 XM_old_PC, XM_PC, XM_IR, XM_target_sx, XM_control, XM_output, XM_B_data); 
 	   
 	 
@@ -454,13 +426,9 @@ module processor(
 	 */
 	
 	   
-		assign ctrl_writeEnable = MW_control[4]; // || multdiv_RDY;             // O: Write enable for regfile
-		
-		
-		
-		assign ctrl_decision = MW_control[22] ? 5'b11110 : MW_IR[26:22];  //rstatus or rd? setx 
-		assign ctrl_writeReg = MW_control[18] ? 5'b11111 : ctrl_decision;		// if it's jal, r31 write
-		
+		assign ctrl_writeEnable = MW_control[4];   // O: Write enable for regfile
+		//assign ctrl_writeReg = MW_control[18] ? 5'b11111 : MW_IR[26:22];		// if it's jal, r31 write
+		assign ctrl_writeReg = MW_IR[26:22];		
 		
 		/*decide bw which data to write to reg:
 		LW: MW_dmem
@@ -470,8 +438,7 @@ module processor(
 		*/
 		
 		assign data_decision1 = MW_control[16] ? MW_dmem: MW_output; //is lw? switch bw alu output or mem output
-		assign data_decision2 = MW_control[18] ? MW_old_PC: data_decision1; //is jal? COULD BE XM_old_PC...b/c PC+1
-		assign data_writeReg = MW_control[22] ? MW_target_sx : data_decision2; //is setx
+		assign data_writeReg = MW_control[18] ? MW_old_PC: data_decision1; //is jal? COULD BE XM_old_PC...b/c PC+1
 		
 		
 		
